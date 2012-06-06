@@ -2,6 +2,13 @@ import socket, time
 
 class Engine:
 
+	_transaction_id = 0
+
+	def _add_transaction_id(self, s):
+		self._transaction_id += 1
+		return str(s) + ' -i ' + str(self._transaction_id)
+
+
 	def start(self):
 		HOST = 'localhost'
 		PORT = 9000
@@ -17,8 +24,14 @@ class Engine:
 		return response
 
 
+	def stop(self):
+		self.conn.close()
+
+
 	def send(self, user_command = ''):
+		user_command = self._add_transaction_id(user_command) 
 		sent = self.conn.send(user_command + '\0')
+		self._transaction_id += 1
 		response = self.receive()
 
 		return sent, response
@@ -43,5 +56,14 @@ class Engine:
 					break
 		return datas
 
-	def stop(self):
-		self.conn.close()
+
+	def step_over(self):
+		return self.send('step_over')
+
+
+	def step_into(self):
+		return self.send('step_into')
+
+
+	def run(self):
+		return self.send('run')
