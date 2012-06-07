@@ -31,7 +31,6 @@ class Engine:
 	def send(self, user_command = ''):
 		user_command = self._add_transaction_id(user_command) 
 		sent = self.conn.send(user_command + '\0')
-		self._transaction_id += 1
 		response = self.receive()
 
 		return sent, response
