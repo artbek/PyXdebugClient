@@ -34,7 +34,12 @@ class Handler:
 	def step_over(self, button):
 		sent, response = debugger.step_over()
 		(lineno, filename) = _get_attributes(response)
-		self._codeview.set_text(lineno[1] + '\n' + filename[1])
+		f = open(filename[1].replace('file://', ''), 'r')
+		print lineno
+		print filename[1].replace('file://', '')
+		print f
+		self._codeview.set_text(f.read())
+		f.close()
 
 	def step_into(self, button):
 		sent, response = debugger.step_into()
@@ -42,7 +47,7 @@ class Handler:
 
 
 builder = Gtk.Builder()
-builder.add_from_file("gui.xml")
+builder.add_from_file("gui.glade")
 builder.connect_signals(Handler())
 
 builder.get_object("textview_code").get_buffer().set_text("bollocks")
