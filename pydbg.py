@@ -1,9 +1,20 @@
 from engine import Engine
 from gi.repository import Gtk
+from xml.etree import ElementTree
 
 debugger = Engine()
 response = debugger.start()
 print response
+
+def _get_attributes(s):
+	# neccessary for etree to work
+	s = s.replace('\x00', '')
+
+	element = ElementTree.XML(s)
+	tag = element.iter()
+	tag.next(); # <response></response>
+
+	return tag.next().items()
 
 
 class Handler:
@@ -22,7 +33,8 @@ class Handler:
 
 	def step_over(self, button):
 		sent, response = debugger.step_over()
-		self._codeview.set_text(response)
+		(lineno, filename) = _get_attributes(response)
+		self._codeview.set_text(lineno[1] + '\n' + filename[1])
 
 	def step_into(self, button):
 		sent, response = debugger.step_into()
