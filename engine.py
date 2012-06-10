@@ -32,6 +32,7 @@ class Engine:
 		user_command = self._add_transaction_id(user_command) 
 		sent = self.conn.send(user_command + '\0')
 		response = self.receive()
+		print response
 
 		return sent, response
 
