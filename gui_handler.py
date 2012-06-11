@@ -7,10 +7,14 @@ class Handler:
 	_debugger = None
 
 	def __init__(self, builder, debugger):
-		self._codeview = builder.get_object("textview_code")
-		self._buf = self._codeview.get_buffer()
+		self._codeview = builder.get_object("treeview1")
+		renderer = Gtk.CellRendererText()
+		column_1 = Gtk.TreeViewColumn(None, renderer, text=0)
+		column_2 = Gtk.TreeViewColumn(None, renderer, text=1)
+		self._codeview.append_column(column_1)
+		self._codeview.append_column(column_2)
+
 		self._debugger = debugger
-		self._tag = self._buf.create_tag("orange_bg", background="orange")
 
 	def delete_window(self, *args):
 		self._debugger.stop()
@@ -32,14 +36,13 @@ class Handler:
 
 	def _update_codeview(self, response):
 		(lineno, filename) = self._get_attributes(response)
-		self._buf.remove_all_tags(self._buf.get_start_iter(), self._buf.get_end_iter())
 		self._load_sourcecode_file(filename[1])
+		sel = self._codeview.get_selection()
+		sel.select_path(int(lineno[1]) - 1)
+		self._codeview.scroll_to_cell((int(lineno[1]) - 1), None, True, 0.0, 0.0)
 
-		iter = self._buf.get_iter_at_line_index(int(lineno[1]) - 1, 0)
-		mark = self._buf.create_mark(None, iter, True)
-		self._codeview.scroll_to_mark(mark, 0.0, True, 0.0, 0.0)
 
-		self._buf.apply_tag(self._tag, iter, self._buf.get_iter_at_line_index(int(lineno[1]), 0))
+
 
 	def _get_attributes(self, s):
 		# neccessary for etree to work
@@ -54,10 +57,15 @@ class Handler:
 	def _load_sourcecode_file(self, filename):
 		file_to_open = filename.replace('file://', '')
 		if (self._open_file != file_to_open):
+			store = Gtk.ListStore(int, str)
 			f = open(file_to_open, 'r')
 			self._open_file = file_to_open
-			self._buf.set_text(f.read())
+			line_number = 1
+			for line in f:
+				store.append([line_number, line.replace('\n', '')])
+				line_number += 1
 			f.close()
+			self._codeview.set_model(store)
 
 		return file_to_open
 
