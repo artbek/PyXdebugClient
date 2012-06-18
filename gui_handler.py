@@ -5,8 +5,11 @@ class Handler:
 	_codeview = None
 	_open_file = None
 	_debugger = None
+	_builder = None
+	_console = None
 
 	def __init__(self, builder, debugger):
+		self._console = builder.get_object("console")
 		self._codeview = builder.get_object("treeview1")
 		renderer = Gtk.CellRendererText()
 		column_1 = Gtk.TreeViewColumn(None, renderer, text=0)
@@ -15,6 +18,7 @@ class Handler:
 		self._codeview.append_column(column_2)
 
 		self._debugger = debugger
+		self._builder = builder
 
 	def delete_window(self, *args):
 		self._debugger.stop()
@@ -34,14 +38,23 @@ class Handler:
 		self._update_codeview(response)
 
 
+	def listen(self, button):
+		context_id = Gtk.Statusbar().get_context_id("Connection");
+		self._builder.get_object("statusbar_main").push(context_id, "Listening...")
+		context_id = Gtk.Statusbar().get_context_id("Connection");
+		[addr, response] = self._debugger.start()
+		self._builder.get_object("statusbar_main").push(context_id, addr)
+		self._builder.get_object("console").get_buffer().set_text(response)
+		
+
+
 	def _update_codeview(self, response):
 		(lineno, filename) = self._get_attributes(response)
 		self._load_sourcecode_file(filename[1])
 		sel = self._codeview.get_selection()
 		sel.select_path(int(lineno[1]) - 1)
-		self._codeview.scroll_to_cell((int(lineno[1]) - 1), None, True, 0.0, 0.0)
-
-
+		self._codeview.scroll_to_cell((int(lineno[1]) - 1), None, False, 0.0, 0.0)
+		self._console.get_buffer().set_text(response)
 
 
 	def _get_attributes(self, s):
@@ -53,6 +66,7 @@ class Handler:
 		tag.next(); # <response></response>
 
 		return tag.next().items()
+
 
 	def _load_sourcecode_file(self, filename):
 		file_to_open = filename.replace('file://', '')

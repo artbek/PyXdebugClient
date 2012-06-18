@@ -8,31 +8,37 @@ class Engine:
 		self._transaction_id += 1
 		return str(s) + ' -i ' + str(self._transaction_id)
 
+	def __init__(self):
+		self.conn = None
 
 	def start(self):
 		HOST = 'localhost'
 		PORT = 9000
+		socket.setdefaulttimeout(5)
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.bind((HOST, PORT))
-		print 'Listening...'
-		s.listen(5)
-
-		self.conn, addr = s.accept()
-		print 'Established: ' + str(addr)
+		try:
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			s.bind((HOST, PORT))
+			s.listen(5)
+			self.conn, addr = s.accept()
+		except socket.timeout:
+			print "timeout..."
+			s.close()
+			return ["Timeout", "Connection closed."]
 		response = self.receive()
 
-		return response
+		return [str(addr), response]
 
 
 	def stop(self):
-		self.conn.close()
+		if self.conn:
+			self.conn.close()
 
 
 	def send(self, user_command = ''):
-		user_command = self._add_transaction_id(user_command) 
+		user_command = self._add_transaction_id(user_command)
 		sent = self.conn.send(user_command + '\0')
 		response = self.receive()
-		print response
 
 		return sent, response
 
