@@ -3,6 +3,7 @@ import socket, time
 class Engine:
 
 	_transaction_id = 0
+	status = 'idle'
 
 	def _add_transaction_id(self, s):
 		self._transaction_id += 1
@@ -21,11 +22,12 @@ class Engine:
 			s.bind((HOST, PORT))
 			s.listen(5)
 			self.conn, addr = s.accept()
+			self.status = 'running'
+			response = self.receive()
 		except socket.timeout:
 			print "timeout..."
 			s.close()
 			return ["Timeout", "Connection closed."]
-		response = self.receive()
 
 		return [str(addr), response]
 
@@ -33,6 +35,7 @@ class Engine:
 	def stop(self):
 		if self.conn:
 			self.conn.close()
+			self.status = 'idle'
 
 
 	def send(self, user_command = ''):

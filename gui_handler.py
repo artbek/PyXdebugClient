@@ -1,63 +1,78 @@
 from xml.etree import ElementTree
 from gi.repository import Gtk
+from engine import Engine
 
 class Handler:
-	_codeview = None
-	_open_file = None
-	_debugger = None
-	_builder = None
-	_console = None
 
-	def __init__(self, builder, debugger):
-		self._console = builder.get_object("console")
-		self._codeview = builder.get_object("treeview1")
-		renderer = Gtk.CellRendererText()
-		column_1 = Gtk.TreeViewColumn(None, renderer, text=0)
-		column_2 = Gtk.TreeViewColumn(None, renderer, text=1)
-		self._codeview.append_column(column_1)
-		self._codeview.append_column(column_2)
-
-		self._debugger = debugger
-		self._builder = builder
+	def __init__(self, builder):
+		self.debugger = Engine()
+		self.builder = builder
+		self.codeview = self.setup_codeview()
+		self.open_file = None
 
 	def delete_window(self, *args):
-		self._debugger.stop()
+		self.debugger.stop()
 		Gtk.main_quit(*args)
 
 
+# BUTTONS ACTIONS
+
 	def run(self, button):
-		sent, response = self._debugger.run()
-		self._update_codeview(response)
+		[sent, response] = self.debugger.run()
+		self.update_codeview(response)
 
 	def step_over(self, button):
-		sent, response = self._debugger.step_over()
-		self._update_codeview(response)
+		[sent, response] = self.debugger.step_over()
+		self.update_codeview(response)
 
 	def step_into(self, button):
-		sent, response = self._debugger.step_into()
-		self._update_codeview(response)
-
+		[sent, response] = self.debugger.step_into()
+		self.update_codeview(response)
 
 	def listen(self, button):
+		if (self.debugger.status == 'running'):
+			button.set_label('Listen')
+			self.debugger.stop()
+			self.set_status('Stopped.')
+		else:
+			button.set_label('Stop')
+			self.set_status('Listening...')
+			[addr, response] = self.debugger.start()
+			self.set_status(addr)
+			self.update_console(response)
+
+
+# CONSOLE & STATUS
+
+	def update_console(self, text):
+		self.builder.get_object("console").get_buffer().set_text(text)
+
+	def set_status(self, text):
 		context_id = Gtk.Statusbar().get_context_id("Connection");
-		self._builder.get_object("statusbar_main").push(context_id, "Listening...")
-		context_id = Gtk.Statusbar().get_context_id("Connection");
-		[addr, response] = self._debugger.start()
-		self._builder.get_object("statusbar_main").push(context_id, addr)
-		self._builder.get_object("console").get_buffer().set_text(response)
-		
+		self.builder.get_object("statusbar_main").push(context_id, text)
 
 
-	def _update_codeview(self, response):
-		(lineno, filename) = self._get_attributes(response)
-		self._load_sourcecode_file(filename[1])
-		sel = self._codeview.get_selection()
-		sel.select_path(int(lineno[1]) - 1)
-		self._codeview.scroll_to_cell((int(lineno[1]) - 1), None, False, 0.0, 0.0)
-		self._console.get_buffer().set_text(response)
+# CODEVIEW
+
+	def setup_codeview(self):
+		codeview = self.builder.get_object("treeview1")
+		renderer = Gtk.CellRendererText()
+		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=0))
+		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=1))
+		return codeview
 
 
-	def _get_attributes(self, s):
+	def update_codeview(self, response):
+		(lineno, filename) = self.get_attributes(response)
+		self.load_sourcecode_file(filename[1])
+
+		self.codeview.get_selection().select_path(int(lineno[1]) - 1)
+		self.codeview.scroll_to_cell((int(lineno[1]) - 1), None, False, 0.0, 0.0)
+
+		self.update_console(response)
+
+
+	def get_attributes(self, s):
 		# neccessary for etree to work
 		s = s.replace('\x00', '')
 
@@ -68,18 +83,18 @@ class Handler:
 		return tag.next().items()
 
 
-	def _load_sourcecode_file(self, filename):
+	def load_sourcecode_file(self, filename):
 		file_to_open = filename.replace('file://', '')
-		if (self._open_file != file_to_open):
+		if (self.open_file != file_to_open):
 			store = Gtk.ListStore(int, str)
 			f = open(file_to_open, 'r')
-			self._open_file = file_to_open
+			self.open_file = file_to_open
 			line_number = 1
 			for line in f:
 				store.append([line_number, line.replace('\n', '')])
 				line_number += 1
 			f.close()
-			self._codeview.set_model(store)
+			self.codeview.set_model(store)
 
 		return file_to_open
 
