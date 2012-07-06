@@ -72,10 +72,9 @@ class Handler:
 
 	def update_codeview(self, response):
 		(lineno, filename) = self.get_attributes(response)
-		self.load_sourcecode_file(filename[1])
-
-		self.codeview.get_selection().select_path(int(lineno[1]) - 1)
-		self.codeview.scroll_to_cell((int(lineno[1]) - 1), None, False, 0.0, 0.0)
+		if self.load_sourcecode_file(filename[1]):
+			self.codeview.get_selection().select_path(int(lineno[1]) - 1)
+			self.codeview.scroll_to_cell((int(lineno[1]) - 1), None, False, 0.0, 0.0)
 
 		self.update_console(response)
 
