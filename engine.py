@@ -1,6 +1,6 @@
-import socket, time
+import socket, time, threading
 
-class Engine:
+class Engine(threading.Thread):
 
 	_transaction_id = 0
 	status = 'idle'
@@ -9,11 +9,14 @@ class Engine:
 		self._transaction_id += 1
 		return str(s) + ' -i ' + str(self._transaction_id)
 
-	def __init__(self):
+	def __init__(self, queue):
+		threading.Thread.__init__(self)
+		self.queue = queue
 		self.conn = None
 
-	def start(self):
-		HOST = 'localhost'
+
+	def run(self):
+		HOST = ''
 		PORT = 9000
 		socket.setdefaulttimeout(5)
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -21,15 +24,20 @@ class Engine:
 			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			s.bind((HOST, PORT))
 			s.listen(5)
+			self.queue.put("listening...")
 			self.conn, addr = s.accept()
 			self.status = 'running'
 			response = self.receive()
+			output = {
+				'addr': str(addr), 
+				'console': response
+			}
 		except socket.timeout:
-			print "timeout..."
 			s.close()
-			return ["Timeout", "Connection closed."]
+			output = {'response': 'Timeout. Connection closed.'}
 
-		return [str(addr), response]
+		self.queue.put(output)
+		print output
 
 
 	def stop(self):
@@ -43,7 +51,12 @@ class Engine:
 		sent = self.conn.send(user_command + '\0')
 		response = self.receive()
 
-		return sent, response
+		output = {
+			'sent': sent, 
+			'code': response
+		}
+		self.queue.put(output)
+		print output
 
 
 	def receive(self):
@@ -74,5 +87,5 @@ class Engine:
 		return self.send('step_into')
 
 
-	def run(self):
+	def xrun(self):
 		return self.send('run')

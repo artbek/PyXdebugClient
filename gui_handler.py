@@ -1,45 +1,53 @@
 from xml.etree import ElementTree
 from gi.repository import Gtk
 from engine import Engine
+import glib, Queue
 
 class Handler:
 
 	def __init__(self, builder):
-		self.debugger = Engine()
+		self.queue = Queue.Queue()
+		self.debugger = Engine(self.queue)
 		self.builder = builder
 		self.codeview = self.setup_codeview()
 		self.open_file = None
+		glib.idle_add(self.handle_queue)
 
 	def delete_window(self, *args):
 		self.debugger.stop()
 		Gtk.main_quit(*args)
 
+	def handle_queue(self):
+		try:
+			msg = self.queue.get_nowait()
+		except Queue.Empty:
+			msg = ''
+		if (msg):
+			if 'console' in msg:
+				self.update_console(msg['console'])
+			elif 'code' in msg:
+				self.update_codeview(msg['code'])
+		return True
 
 # BUTTONS ACTIONS
 
 	def run(self, button):
-		[sent, response] = self.debugger.run()
-		self.update_codeview(response)
+		self.debugger.xrun()
 
 	def step_over(self, button):
-		[sent, response] = self.debugger.step_over()
-		self.update_codeview(response)
+		self.debugger.step_over()
 
 	def step_into(self, button):
-		[sent, response] = self.debugger.step_into()
-		self.update_codeview(response)
+		self.debugger.step_into()
 
 	def listen(self, button):
 		if (self.debugger.status == 'running'):
 			button.set_label('Listen')
 			self.debugger.stop()
-			self.set_status('Stopped.')
 		else:
 			button.set_label('Stop')
 			self.set_status('Listening...')
-			[addr, response] = self.debugger.start()
-			self.set_status(addr)
-			self.update_console(response)
+			self.debugger.start()
 
 
 # CONSOLE & STATUS
@@ -87,7 +95,11 @@ class Handler:
 		file_to_open = filename.replace('file://', '')
 		if (self.open_file != file_to_open):
 			store = Gtk.ListStore(int, str)
-			f = open(file_to_open, 'r')
+			try:
+				f = open(file_to_open, 'r')
+			except IOError:
+				print "Couldn't open file!" 
+				return None
 			self.open_file = file_to_open
 			line_number = 1
 			for line in f:
