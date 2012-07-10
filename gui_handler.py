@@ -11,7 +11,7 @@ class Handler:
 		self.builder = builder
 		self.codeview = self.setup_codeview()
 		self.open_file = None
-		glib.idle_add(self.handle_queue)
+		glib.timeout_add(200, self.handle_queue)
 
 	def delete_window(self, *args):
 		self.debugger.stop()
@@ -25,9 +25,12 @@ class Handler:
 		if (msg):
 			if 'console' in msg:
 				self.update_console(msg['console'])
-			elif 'code' in msg:
+			if 'stack' in msg:
+				self.update_stack(msg['stack'])
+			if 'code' in msg:
 				self.update_codeview(msg['code'])
 		return True
+
 
 # BUTTONS ACTIONS
 
@@ -54,6 +57,9 @@ class Handler:
 
 	def update_console(self, text):
 		self.builder.get_object("console").get_buffer().set_text(text)
+
+	def update_stack(self, text):
+		self.builder.get_object("stack").get_buffer().set_text(text)
 
 	def set_status(self, text):
 		context_id = Gtk.Statusbar().get_context_id("Connection");
@@ -97,7 +103,7 @@ class Handler:
 			try:
 				f = open(file_to_open, 'r')
 			except IOError:
-				print "Couldn't open file!" 
+				print "Couldn't open file!"
 				return None
 			self.open_file = file_to_open
 			line_number = 1

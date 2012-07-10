@@ -29,7 +29,7 @@ class Engine(threading.Thread):
 			self.status = 'running'
 			response = self.receive()
 			output = {
-				'addr': str(addr), 
+				'addr': str(addr),
 				'console': response
 			}
 		except socket.timeout:
@@ -51,12 +51,7 @@ class Engine(threading.Thread):
 		sent = self.conn.send(user_command + '\0')
 		response = self.receive()
 
-		output = {
-			'sent': sent, 
-			'code': response
-		}
-		self.queue.put(output)
-		print output
+		return response
 
 
 	def receive(self):
@@ -80,12 +75,23 @@ class Engine(threading.Thread):
 
 
 	def step_over(self):
-		return self.send('step_over')
+		output = {
+			'code': self.send('step_over'),
+			'stack': self.send('stack_get'),
+		}
+		self.queue.put(output)
 
 
 	def step_into(self):
-		return self.send('step_into')
+		output = {
+			'code': self.send('step_into'),
+			'stack': self.send('stack_get'),
+		}
+		self.queue.put(output)
 
 
 	def xrun(self):
-		return self.send('run')
+		self.send('run')
+
+
+
