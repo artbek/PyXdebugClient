@@ -59,7 +59,14 @@ class Handler:
 		self.builder.get_object("console").get_buffer().set_text(text)
 
 	def update_stack(self, text):
-		self.builder.get_object("stack").get_buffer().set_text(text)
+		s = text.replace('\x00', '')
+		stack_iter = list(ElementTree.XML(s).iter())
+		stack_str = ''
+		for e in stack_iter:
+			temp = e.get('filename')
+			if temp:
+				stack_str += temp + '\n'
+		self.builder.get_object("stack").get_buffer().set_text(stack_str)
 
 	def set_status(self, text):
 		context_id = Gtk.Statusbar().get_context_id("Connection");
