@@ -78,8 +78,8 @@ class Handler:
 	def setup_codeview(self):
 		codeview = self.builder.get_object("treeview1")
 		renderer = Gtk.CellRendererText()
-		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=0))
-		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=1))
+		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=0, foreground=4, background=2))
+		codeview.append_column(Gtk.TreeViewColumn(None, renderer, text=1, foreground=5, background=3))
 		return codeview
 
 
@@ -106,7 +106,7 @@ class Handler:
 	def load_sourcecode_file(self, filename):
 		file_to_open = filename.replace('file://', '')
 		if (self.open_file != file_to_open):
-			store = Gtk.ListStore(int, str)
+			store = Gtk.ListStore(int, str, str, str, str, str)
 			try:
 				f = open(file_to_open, 'r')
 			except IOError:
@@ -115,7 +115,7 @@ class Handler:
 			self.open_file = file_to_open
 			line_number = 1
 			for line in f:
-				store.append([line_number, line.replace('\n', '')])
+				store.append([line_number, line.replace('\n', ''), "#eeeeee", "#ffffff", "#bbbbbb", "#333333"])
 				line_number += 1
 			f.close()
 			self.codeview.set_model(store)
