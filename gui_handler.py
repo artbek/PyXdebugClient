@@ -106,30 +106,30 @@ class Handler:
 		s = '<response xmlns="urn:debugger_protocol_v1" xmlns:xdebug="http://xdebug.org/dbgp/xdebug" command="eval" transaction_id="70"><property address="140736914105248" type="object" classname="Fuel\Core\Request" children="1" numchildren="14" page="0" pagesize="32"><property name="response" facet="public" address="264918112" type="null"></property><property name="uri" facet="public" address="264917504" type="object" classname="Fuel\Core\Uri" children="1" numchildren="2" page="0" pagesize="32"><property name="uri" facet="protected" address="264982928" type="string" size="16" encoding="base64"><![CDATA[cHJvZHVjdC92aWV3LzM3Mg==]]></property><property name="segments" facet="protected" address="264942232" type="array" children="1" numchildren="3"></property></property><property name="route" facet="public" address="265048112" type="object" classname="Fuel\Core\Route" children="1" numchildren="12" page="0" pagesize="32"><property name="segments" facet="public" address="265474552" type="array" children="1" numchildren="3"></property><property name="named_params" facet="public" address="265054584" type="array" children="0" numchildren="0"></property><property name="method_params" facet="public" address="265009968" type="array" children="1" numchildren="1"></property><property name="path" facet="public" address="264926608" type="string" size="16" encoding="base64"><![CDATA[cHJvZHVjdC92aWV3LzM3Mg==]]></property><property name="case_sensitive" facet="public" address="265048256" type="bool"><![CDATA[1]]></property><property name="module" facet="public" address="265008360" type="string" size="7" encoding="base64"><![CDATA[cHJvZHVjdA==]]></property><property name="directory" facet="public" address="264577008" type="null"></property><property name="controller" facet="public" address="265010048" type="string" size="26" encoding="base64"><![CDATA[UHJvZHVjdFxDb250cm9sbGVyX1Byb2R1Y3Q=]]></property><property name="action" facet="public" address="265009168" type="string" size="4" encoding="base64"><![CDATA[dmlldw==]]></property><property name="translation" facet="public" address="264982928" type="string" size="16" encoding="base64"><![CDATA[cHJvZHVjdC92aWV3LzM3Mg==]]></property><property name="callable" facet="public" address="264821760" type="null"></property><property name="search" facet="protected" address="264926608" type="string" size="16" encoding="base64"><![CDATA[cHJvZHVjdC92aWV3LzM3Mg==]]></property></property><property name="method" facet="protected" address="47392883727792" type="string" size="3" encoding="base64"><![CDATA[R0VU]]></property><property name="module" facet="public" address="265008360" type="string" size="7" encoding="base64"><![CDATA[cHJvZHVjdA==]]></property><property name="directory" facet="public" address="264917904" type="string" size="0" encoding="base64"><![CDATA[]]></property><property name="controller" facet="public" address="265010048" type="string" size="26" encoding="base64"><![CDATA[UHJvZHVjdFxDb250cm9sbGVyX1Byb2R1Y3Q=]]></property><property name="action" facet="public" address="265009168" type="string" size="4" encoding="base64"><![CDATA[dmlldw==]]></property><property name="method_params" facet="public" address="265009968" type="array" children="1" numchildren="1" page="0" pagesize="32"><property name="0" address="265009216" type="string" size="3" encoding="base64"><![CDATA[Mzcy]]></property></property><property name="named_params" facet="public" address="265054584" type="array" children="0" numchildren="0" page="0" pagesize="32"></property><property name="controller_instance" facet="public" address="264937984" type="null"></property><property name="paths" facet="public" address="265038704" type="array" children="1" numchildren="1" page="0" pagesize="32"><property name="0" address="265038304" type="string" size="114" encoding="base64"><![CDATA[L21udC9wZHJpdmUvQ2xpZW50cy9qb3NlcGhqb3NlcGguY29tLW5ldy92ZXJzaW9ucy9iYXJ0L2luY2x1ZGVzL2Z1ZWwvcGFja2FnZXMvcHJvcHNob3AvY2xhc3Nlcy8uLi9tb2R1bGVzL3Byb2R1Y3Qv]]></property></property><property name="parent" facet="protected" address="264938440" type="null"></property><property name="children" facet="protected" address="264938664" type="array" children="0" numchildren="0" page="0" pagesize="32"></property></property></response>'
 
 		XMLNS = "urn:debugger_protocol_v1"
-		element = ElementTree.XML(s)
-		iterator = element.iter()
-		iterator.next() # get <response> out of the way
-		#for tag in i: print str(tag.get("name")) + ": " + str(base64.b64decode(tag.text))
-		parent_map = dict((c, p) for p in iterator for c in p)
-		print parent_map
+		elements = ElementTree.XML(s)
+
 		store = Gtk.TreeStore(str)
-
-		parents = [None]
-		current_parent = None
-		for tag in iterator:
-			s = str(tag.get("name")) + ": " + str(tag.text)
-			new_parent = store.append(current_parent, [s])
-
-
-			if (len(tag) > 0):
-				print len(tag)
-
-
+		self.prepareStore(elements, None, store)
 
 		#p = store.append(None, ['abc'])
 		#store.append(p, ['123'])
 		self.watchesview.set_model(store)
 
+
+	def prepareStore(self, elements, parent, store):
+		for tag in elements:
+			if tag.text:
+				if tag.get('encoding') == 'base64':
+					copy = base64.b64decode(str(tag.text))
+				else:
+					copy = tag.text
+			else:
+				copy = ''
+
+			type = tag.get('type')
+			new_parent = store.append(parent, [str(tag.get('name')) + "(" + str(type) + "): " + str(copy)])
+			if len(tag) > 0:
+				self.prepareStore(tag, new_parent, store)
 
 
 
