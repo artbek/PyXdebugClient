@@ -9,6 +9,7 @@ class Handler:
 	def __init__(self, builder):
 		self.queue = Queue.Queue()
 		self.debugger = Engine(self.queue)
+		self.debugger.start()
 		self.builder = builder
 		self.codeview = self.setup_codeview()
 		self.watchesview = self.setup_watchesview()
@@ -16,10 +17,14 @@ class Handler:
 		glib.timeout_add(200, self.handle_queue)
 
 	def delete_window(self, *args):
-		self.debugger.stop()
+		print "Waiting for socket to close..."
+		self.debugger.signal = 'kill'
 		Gtk.main_quit(*args)
 
 	def handle_queue(self):
+		if (self.debugger.signal):
+			print 'Signal: ' + str(self.debugger.signal)
+		print 'Status: ' + str(self.debugger.status)
 		try:
 			msg = self.queue.get_nowait()
 		except Queue.Empty:
@@ -31,7 +36,25 @@ class Handler:
 				self.update_stack(msg['stack'])
 			if 'code' in msg:
 				self.update_codeview(msg['code'])
+			if 'watchview' in msg:
+				self.update_watchesview(msg['watchview'][0])
+
+		self.update_buttons()
 		return True
+
+	def update_buttons(self):
+		listen_button = self.builder.get_object("button_listen")
+		status = self.debugger.status
+		if (status == 'idle'):
+			listen_button.set_sensitive(True)
+			listen_button.set_label('Listen')
+		elif (status == 'listening'):
+			listen_button.set_sensitive(False)
+			listen_button.set_label('Listening...')
+		elif (status == 'running'):
+			listen_button.set_sensitive(True)
+			listen_button.set_label('Stop')
+
 
 
 # BUTTONS ACTIONS
@@ -46,14 +69,15 @@ class Handler:
 		self.debugger.step_into()
 
 	def listen(self, button):
-		self.update_watchesview("<div><p><a>aaa</a></p></div>")
-		if (self.debugger.status == 'running'):
-			button.set_label('Listen')
-			self.debugger.stop()
-		else:
-			button.set_label('Stop')
-			self.set_status('Listening...')
-			self.debugger.start()
+		#self.update_watchesview("<div><p>" + str(self.debugger.status) + "</p></div>")
+		status = self.debugger.status
+		if (status == 'idle'):
+			self.debugger.signal = "listen"
+		elif (status == 'listening'):
+			self.debugger.signal = "stop=listening"
+		elif (status == 'running'):
+			self.debugger.signal = "stop"
+
 
 
 # CONSOLE & STATUS

@@ -1,9 +1,11 @@
-import socket, time, threading
+import socket, time, threading, Queue
 
 class Engine(threading.Thread):
 
 	_transaction_id = 0
 	status = 'idle'
+	watches = []
+	signal = ''
 
 	def _add_transaction_id(self, s):
 		self._transaction_id += 1
@@ -13,19 +15,20 @@ class Engine(threading.Thread):
 		threading.Thread.__init__(self)
 		self.queue = queue
 		self.conn = None
+		self.s = None
 
-
-	def run(self):
+	def connect(self):
 		HOST = ''
 		PORT = 9000
-		socket.setdefaulttimeout(5)
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		socket.setdefaulttimeout(3)
+		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			s.bind((HOST, PORT))
-			s.listen(5)
+			self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self.s.bind((HOST, PORT))
+			self.s.listen(5)
 			self.queue.put("listening...")
-			self.conn, addr = s.accept()
+			self.status = 'listening'
+			self.conn, addr = self.s.accept()
 			self.status = 'running'
 			response = self.receive()
 			output = {
@@ -33,17 +36,38 @@ class Engine(threading.Thread):
 				'console': response
 			}
 		except socket.timeout:
-			s.close()
+			self.s.shutdown(socket.SHUT_RDWR);
+			self.s.close()
+			self.s = None
 			output = {'response': 'Timeout. Connection closed.'}
+			self.status = 'idle'
 
 		self.queue.put(output)
 		print output
 
 
-	def stop(self):
-		if self.conn:
+	def run(self):
+		print "Start thread " + str(self.name)
+		while True:
+			if (self.signal == 'listen'):
+				self.signal = ''
+				self.connect()
+			elif (self.signal == 'stop'):
+				self.signal = ''
+				self.disconnect()
+			elif (self.signal == 'kill'):
+				break
+
+			time.sleep(0.1)
+
+
+	def disconnect(self):
+		if (self.s):
+			self.s.shutdown(socket.SHUT_RDWR);
+			self.s.close();
+		if (self.conn):
 			self.conn.close()
-			self.status = 'idle'
+		self.status = 'idle'
 
 
 	def send(self, user_command = ''):
@@ -78,6 +102,7 @@ class Engine(threading.Thread):
 		output = {
 			'code': self.send('step_over'),
 			'stack': self.send('stack_get'),
+			'watchview': self.get_watches(),
 		}
 		self.queue.put(output)
 
@@ -86,12 +111,23 @@ class Engine(threading.Thread):
 		output = {
 			'code': self.send('step_into'),
 			'stack': self.send('stack_get'),
+			'watchview': self.get_watches(),
 		}
 		self.queue.put(output)
 
 
 	def xrun(self):
 		self.send('run')
+
+
+	def get_watches(self):
+		output = []
+		for w in self.watches:
+			r = self.send('property_get -n' + str(w))
+			output.append(r)
+
+		print output
+		return output
 
 
 
