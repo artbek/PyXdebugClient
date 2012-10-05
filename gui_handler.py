@@ -132,11 +132,16 @@ class Handler:
 
 
 	def prepareStore(self, elements, parent, store):
-		for watch_name in elements:
-			tag = elements[watch_name]
-			name = tag.get('name')
-			if (name == None):
-				name = watch_name
+		for e in elements:
+			if (type(elements) == type(dict())):
+				tag = elements[e]
+			else:
+				tag = e
+
+			tag_name = tag.get('name')
+			if (tag_name == None):
+				tag_name = e
+
 			copy = ''
 			if tag.text:
 				if tag.get('encoding') == 'base64':
@@ -144,8 +149,8 @@ class Handler:
 				else:
 					copy = tag.text
 
-			type = tag.get('type')
-			new_parent = store.append(parent, [str(name) + " (" + str(type) + "): " + str(copy)])
+			value_type = tag.get('type')
+			new_parent = store.append(parent, [str(tag_name) + " (" + str(value_type) + "): " + str(copy)])
 			if len(tag) > 0:
 				self.prepareStore(tag, new_parent, store)
 
