@@ -2,7 +2,7 @@ from xml.etree import ElementTree
 from gi.repository import Gtk
 from engine import Engine
 import glib, Queue
-import base64
+import base64, time
 
 class Handler:
 
@@ -22,9 +22,7 @@ class Handler:
 		Gtk.main_quit(*args)
 
 	def handle_queue(self):
-		if (self.debugger.signal):
-			print 'Signal: ' + str(self.debugger.signal)
-		print 'Status: ' + str(self.debugger.status)
+		time.sleep(0.1) #doesn't work without it
 		try:
 			msg = self.queue.get_nowait()
 		except Queue.Empty:
@@ -37,9 +35,10 @@ class Handler:
 			if 'code' in msg:
 				self.update_codeview(msg['code'])
 			if 'watchview' in msg:
-				self.update_watchesview(msg['watchview'][0])
+				self.update_watchesview(msg['watchview'])
 
 		self.update_buttons()
+		self.set_status('Status: ' + str(self.debugger.status))
 		return True
 
 	def update_buttons(self):
@@ -69,7 +68,6 @@ class Handler:
 		self.debugger.step_into()
 
 	def listen(self, button):
-		#self.update_watchesview("<div><p>" + str(self.debugger.status) + "</p></div>")
 		status = self.debugger.status
 		if (status == 'idle'):
 			self.debugger.signal = "listen"
@@ -99,9 +97,19 @@ class Handler:
 		context_id = Gtk.Statusbar().get_context_id("Connection");
 		self.builder.get_object("statusbar_main").push(context_id, text)
 
+	def execute_command(self, widget, event):
+		if (event.keyval ==	65293):
+			r = self.debugger.execute(widget.get_text())
+			self.update_console(r)
+
 
 
 # WATCHES VIEW
+
+	def add_watch(self, widget, event):
+		if (event.keyval ==	65293):
+			self.debugger.add_watch(widget.get_text())
+
 
 	def setup_watchesview(self):
 		v = self.builder.get_object("watches")
@@ -110,16 +118,25 @@ class Handler:
 		return v
 
 
-	def update_watchesview(self, s):
+	def update_watchesview(self, watches):
 		XMLNS = "urn:debugger_protocol_v1"
-		elements = ElementTree.XML(s)
+		elements = dict()
+		for s in watches:
+			xml_data = watches[s].replace('\x00', '')
+			response_element = ElementTree.XML(xml_data)
+			elements[s] = list(response_element).pop()
+
 		store = Gtk.TreeStore(str)
 		self.prepareStore(elements, None, store)
 		self.watchesview.set_model(store)
 
 
 	def prepareStore(self, elements, parent, store):
-		for tag in elements:
+		for watch_name in elements:
+			tag = elements[watch_name]
+			name = tag.get('name')
+			if (name == None):
+				name = watch_name
 			copy = ''
 			if tag.text:
 				if tag.get('encoding') == 'base64':
@@ -128,7 +145,7 @@ class Handler:
 					copy = tag.text
 
 			type = tag.get('type')
-			new_parent = store.append(parent, [str(tag.get('name')) + " (" + str(type) + "): " + str(copy)])
+			new_parent = store.append(parent, [str(name) + " (" + str(type) + "): " + str(copy)])
 			if len(tag) > 0:
 				self.prepareStore(tag, new_parent, store)
 
@@ -176,7 +193,14 @@ class Handler:
 			self.open_file = file_to_open
 			line_number = 1
 			for line in f:
-				store.append([line_number, line.replace('\n', ''), "#eeeeee", "#ffffff", "#bbbbbb", "#333333"])
+				store.append([
+					line_number,
+					line.replace('\n', ''),
+					"#eeeeee",
+					"#ffffff",
+					"#bbbbbb",
+					"#333333"
+				])
 				line_number += 1
 			f.close()
 			self.codeview.set_model(store)

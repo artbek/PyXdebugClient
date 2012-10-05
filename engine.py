@@ -1,4 +1,4 @@
-import socket, time, threading, Queue
+import socket, time, threading, Queue, base64
 
 class Engine(threading.Thread):
 
@@ -43,11 +43,10 @@ class Engine(threading.Thread):
 			self.status = 'idle'
 
 		self.queue.put(output)
-		print output
 
 
 	def run(self):
-		print "Start thread " + str(self.name)
+		print "Starting thread: " + str(self.name)
 		while True:
 			if (self.signal == 'listen'):
 				self.signal = ''
@@ -70,8 +69,18 @@ class Engine(threading.Thread):
 		self.status = 'idle'
 
 
-	def send(self, user_command = ''):
+	def send(self, user_command = '', params = ''):
 		user_command = self._add_transaction_id(user_command)
+		user_command += params
+		print user_command
+		sent = self.conn.send(user_command + '\0')
+		response = self.receive()
+
+		return response
+
+
+	def execute(self, user_command = ''):
+		print user_command
 		sent = self.conn.send(user_command + '\0')
 		response = self.receive()
 
@@ -80,22 +89,22 @@ class Engine(threading.Thread):
 
 	def receive(self):
 		counter = 0
-		datas = ''
+		data = ''
 		while 1:
-			data = self.conn.recv(1)
-			if not data:
-				datas = 'Debugging session finished.'
+			datum = self.conn.recv(1)
+			if not datum:
+				data = 'Debugging session finished.'
 				break
-			datas += data
-			if (ord(data) == 0):
+			data += datum
+			if (ord(datum) == 0):
 				counter += 1
 				if (counter == 1):
-					#print 'Incoming length: ' + str(datas)
-					datas = ''
+					#print 'Incoming length: ' + str(data)
+					data = ''
 				if (counter == 2):
-					#print datas
+					#print data
 					break
-		return datas
+		return data
 
 
 	def step_over(self):
@@ -120,14 +129,23 @@ class Engine(threading.Thread):
 		self.send('run')
 
 
-	def get_watches(self):
-		output = []
-		for w in self.watches:
-			r = self.send('property_get -n' + str(w))
-			output.append(r)
-
-		print output
+	def eval(self, value):
+		output = self.send('eval', ' -- ' + base64.b64encode(value))
 		return output
+
+
+	def get_watches(self):
+		output = dict()
+		for w in self.watches:
+			r = self.send('eval', ' -- ' + base64.b64encode(w))
+			output[w] = r
+
+		return output
+
+
+	def add_watch(self, value):
+		self.watches.append(value)
+		print self.watches
 
 
 
